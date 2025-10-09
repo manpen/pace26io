@@ -1,6 +1,6 @@
 use thiserror::Error;
 
-use super::{binary_tree::*, lexer::*};
+use super::{lexer::*, *};
 
 #[derive(Error, Debug, PartialEq, Eq)]
 pub enum ParserError {
@@ -84,8 +84,6 @@ impl<B: BinaryTreeNode> BinaryTreeParser for B {
 
 #[cfg(test)]
 mod test {
-    use crate::newick::binary_tree_writer::BinaryTreeWriter;
-
     use super::*;
 
     #[test]
