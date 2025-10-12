@@ -6,4 +6,4 @@ pub mod writer;
 
 pub use binary_tree::*;
 pub use binary_tree_parser::*;
-pub use writer::NewickWriter;
+pub use writer::*;

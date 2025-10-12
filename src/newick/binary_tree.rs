@@ -1,7 +1,15 @@
+use std::marker::PhantomData;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Label(pub u32);
 
-pub trait BinaryTreeNode {
+pub trait Buildable {
+    type Node;
+    fn new_inner(&mut self, left: Self::Node, right: Self::Node) -> Self::Node;
+    fn new_leaf(&mut self, label: Label) -> Self::Node;
+}
+
+pub trait Constructable {
     /// Creates a new inner node with the two children provided.
     ///
     /// # Example
@@ -29,7 +37,9 @@ pub trait BinaryTreeNode {
     /// assert!(!leaf.is_inner());
     /// ```
     fn new_leaf(label: Label) -> Self;
+}
 
+pub trait BinaryTreeTopDown {
     /// Returns the children iff self is an inner node and `None` otherwise.
     ///
     /// # Example
@@ -131,7 +141,7 @@ pub enum BinTree {
     Leaf(Label),
 }
 
-impl BinaryTreeNode for BinTree {
+impl Constructable for BinTree {
     fn new_inner(left: Self, right: Self) -> Self {
         BinTree::Node(Box::new((left, right)))
     }
@@ -139,7 +149,9 @@ impl BinaryTreeNode for BinTree {
     fn new_leaf(label: Label) -> Self {
         BinTree::Leaf(label)
     }
+}
 
+impl BinaryTreeTopDown for BinTree {
     fn children(&self) -> Option<(&Self, &Self)> {
         match self {
             BinTree::Node(b) => Some((&b.as_ref().0, &b.as_ref().1)),
@@ -154,3 +166,26 @@ impl BinaryTreeNode for BinTree {
         }
     }
 }
+
+#[derive(Default)]
+pub struct ConstrToBuilderAdapter<C: Constructable>(PhantomData<C>);
+
+impl<C: Constructable> ConstrToBuilderAdapter<C> {
+    pub fn new() -> Self {
+        Self(Default::default())
+    }
+}
+
+impl<C: Constructable> Buildable for ConstrToBuilderAdapter<C> {
+    type Node = C;
+
+    fn new_inner(&mut self, left: Self::Node, right: Self::Node) -> Self::Node {
+        C::new_inner(left, right)
+    }
+
+    fn new_leaf(&mut self, label: Label) -> Self::Node {
+        C::new_leaf(label)
+    }
+}
+
+pub type BinTreeBuilder = ConstrToBuilderAdapter<BinTree>;

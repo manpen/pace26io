@@ -21,7 +21,7 @@ pub trait NewickWriter {
         write!(writer, ";")
     }
 
-    /// Produces a Newick string representation of self by calling [BinaryTreeWriter::write_newick]
+    /// Produces a Newick string representation of self by calling [NewickWriter::write_newick]
     ///
     /// # Example
     /// ```
@@ -42,6 +42,6 @@ pub trait NewickWriter {
     }
 
     /// Produces minimal Newick representation of a binary without any whitespace characters
-    /// Same as [BinaryTreeWriter::write_newick], but omits the finishing semicolon.
+    /// Same as [NewickWriter::write_newick], but omits the finishing semicolon.
     fn write_newick_inner(&self, writer: &mut impl Write) -> std::io::Result<()>;
 }
