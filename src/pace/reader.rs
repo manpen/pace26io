@@ -18,13 +18,13 @@ use thiserror::Error;
 /// struct MyVisitor {}
 ///
 /// impl InstanceVisitor for MyVisitor {
-///   fn visit_header(&mut self, num_trees: usize, num_leafs: usize) -> Action {
-///       println!("Header: {} trees, {} leaves", num_trees, num_leafs);
+///   fn visit_header(&mut self, lineno: usize, num_trees: usize, num_leaves: usize) -> Action {
+///      println!("Header at line {}: {} trees, {} leaves", lineno+1, num_trees, num_leaves);
 ///      Action::Continue
 ///   }
 ///
 ///  fn visit_tree(&mut self, lineno: usize, line: &str) -> Action {
-///     println!("Tree at line {}: {}", lineno + 1, line);
+///    println!("Tree at line {}: {}", lineno + 1, line);
 ///    Action::Continue
 ///  }
 /// }
@@ -45,7 +45,7 @@ pub struct InstanceReader<'a, V: InstanceVisitor> {
 ///
 /// Example: see the documentation of [`InstanceReader`].
 pub trait InstanceVisitor {
-    fn visit_header(&mut self, _num_trees: usize, _num_leafs: usize) -> Action {
+    fn visit_header(&mut self, _lineno: usize, _num_trees: usize, _num_leafs: usize) -> Action {
         Action::Continue
     }
     fn visit_tree(&mut self, _lineno: usize, _line: &str) -> Action {
@@ -135,7 +135,9 @@ impl<'a, V: InstanceVisitor> InstanceReader<'a, V> {
                     }
 
                     if let Some((num_trees, num_leaves)) = try_parse_header(content) {
-                        if self.visitor.visit_header(num_trees, num_leaves) == Action::Terminate {
+                        if self.visitor.visit_header(lineno, num_trees, num_leaves)
+                            == Action::Terminate
+                        {
                             return Ok(());
                         }
                     } else {
@@ -173,7 +175,7 @@ mod tests {
     use super::*;
 
     struct TestVisitor {
-        pub headers: Vec<(usize, usize)>,
+        pub headers: Vec<(usize, usize, usize)>,
         pub trees: Vec<(usize, String)>,
         pub extra_whitespace_lines: Vec<(usize, String)>,
         pub unrecognized_dash_lines: Vec<(usize, String)>,
@@ -193,8 +195,8 @@ mod tests {
     }
 
     impl InstanceVisitor for TestVisitor {
-        fn visit_header(&mut self, num_trees: usize, num_leafs: usize) -> Action {
-            self.headers.push((num_trees, num_leafs));
+        fn visit_header(&mut self, lineno: usize, num_trees: usize, num_leafs: usize) -> Action {
+            self.headers.push((lineno, num_trees, num_leafs));
             Action::Continue
         }
 
@@ -228,7 +230,7 @@ mod tests {
         let mut reader = InstanceReader::new(&mut visitor);
         reader.read(input.as_bytes()).unwrap();
 
-        assert_eq!(visitor.headers, vec![(2, 3)]);
+        assert_eq!(visitor.headers, vec![(0, 2, 3)]);
         assert_eq!(
             visitor.trees,
             vec![(1, "(1);".to_string()), (3, "(2);".to_string())]
@@ -246,7 +248,7 @@ mod tests {
         let mut reader = InstanceReader::new(&mut visitor);
         reader.read(input.as_bytes()).unwrap();
 
-        assert_eq!(visitor.headers, vec![(2, 3)]);
+        assert_eq!(visitor.headers, vec![(0, 2, 3)]);
         assert_eq!(
             visitor.trees,
             vec![(1, "(1);".to_string()), (3, "(2);".to_string())]
@@ -267,7 +269,7 @@ mod tests {
         let mut reader = InstanceReader::new(&mut visitor);
         reader.read(input.as_bytes()).unwrap();
 
-        assert_eq!(visitor.headers, vec![(2, 3)]);
+        assert_eq!(visitor.headers, vec![(0, 2, 3)]);
         assert_eq!(
             visitor.trees,
             vec![(1, "(1);".to_string()), (3, "(2);".to_string())]
