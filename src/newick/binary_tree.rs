@@ -21,8 +21,8 @@ pub trait Constructable {
     ///     BinTree::new_leaf(Label(2))
     /// );
     ///
-    /// assert!(root.is_inner());
-    /// assert!(!root.is_leaf());
+    /// assert!( root.top_down().is_inner());
+    /// assert!(!root.top_down().is_leaf());
     /// ```
     fn new_inner(left: Self, right: Self) -> Self;
 
@@ -33,13 +33,13 @@ pub trait Constructable {
     /// use pace26io::newick::binary_tree::*;
     ///
     /// let leaf = BinTree::new_leaf(Label(42));
-    /// assert!(leaf.is_leaf());
-    /// assert!(!leaf.is_inner());
+    /// assert!( leaf.top_down().is_leaf());
+    /// assert!(!leaf.top_down().is_inner());
     /// ```
     fn new_leaf(label: Label) -> Self;
 }
 
-pub trait BinaryTreeTopDown {
+pub trait TopDownCursor: Sized {
     /// Returns the children iff self is an inner node and `None` otherwise.
     ///
     /// # Example
@@ -49,11 +49,11 @@ pub trait BinaryTreeTopDown {
     /// let leaf = BinTree::new_leaf(Label(1));
     /// let root = BinTree::new_inner(leaf.clone(), leaf.clone());
     ///
-    /// assert!(leaf.children().is_none());
-    /// assert!(root.children().is_some());
-    /// assert!(root.children().unwrap().0.is_leaf());
+    /// assert!(leaf.top_down().children().is_none());
+    /// assert!(root.top_down().children().is_some());
+    /// assert!(root.top_down().children().unwrap().0.is_leaf());
     /// ```
-    fn children(&self) -> Option<(&Self, &Self)>;
+    fn children(&self) -> Option<(Self, Self)>;
 
     /// Returns the left child iff self is an inner node and `None` otherwise.
     ///
@@ -65,9 +65,9 @@ pub trait BinaryTreeTopDown {
     /// let right_leaf = BinTree::new_leaf(Label(1234));
     /// let root = BinTree::new_inner(left_leaf, right_leaf);
     ///
-    /// assert_eq!(root.left_child().unwrap().leaf_label(), Some(Label(3141)));
+    /// assert_eq!(root.top_down().left_child().unwrap().leaf_label(), Some(Label(3141)));
     /// ```
-    fn left_child(&self) -> Option<&Self> {
+    fn left_child(&self) -> Option<Self> {
         self.children().map(|(l, _)| l)
     }
 
@@ -81,9 +81,9 @@ pub trait BinaryTreeTopDown {
     /// let right_leaf = BinTree::new_leaf(Label(1234));
     /// let root = BinTree::new_inner(left_leaf, right_leaf);
     ///
-    /// assert_eq!(root.right_child().unwrap().leaf_label(), Some(Label(1234)));
+    /// assert_eq!(root.top_down().right_child().unwrap().leaf_label(), Some(Label(1234)));
     /// ```
-    fn right_child(&self) -> Option<&Self> {
+    fn right_child(&self) -> Option<Self> {
         self.children().map(|(_, r)| r)
     }
 
@@ -96,8 +96,8 @@ pub trait BinaryTreeTopDown {
     /// let leaf = BinTree::new_leaf(Label(1337));
     /// let root = BinTree::new_inner(leaf.clone(), leaf.clone());
     ///
-    /// assert_eq!(leaf.leaf_label().unwrap(), Label(1337));
-    /// assert!(root.leaf_label().is_none());
+    /// assert_eq!(leaf.top_down().leaf_label().unwrap(), Label(1337));
+    /// assert!(   root.top_down().leaf_label().is_none());
     ///
     fn leaf_label(&self) -> Option<Label>;
 
@@ -110,8 +110,8 @@ pub trait BinaryTreeTopDown {
     /// let leaf = BinTree::new_leaf(Label(1));
     /// let root = BinTree::new_inner(leaf.clone(), leaf.clone());
     ///
-    /// assert!(root.is_inner());
-    /// assert!(!leaf.is_inner());
+    /// assert!( root.top_down().is_inner());
+    /// assert!(!leaf.top_down().is_inner());
     /// ```
     fn is_inner(&self) -> bool {
         !self.is_leaf()
@@ -126,8 +126,8 @@ pub trait BinaryTreeTopDown {
     /// let leaf = BinTree::new_leaf(Label(1));
     /// let root = BinTree::new_inner(leaf.clone(), leaf.clone());
     ///
-    /// assert!(!root.is_leaf());
-    /// assert!( leaf.is_leaf());
+    /// assert!(!root.top_down().is_leaf());
+    /// assert!( leaf.top_down().is_leaf());
     /// ```
     fn is_leaf(&self) -> bool {
         self.leaf_label().is_some()
@@ -141,6 +141,12 @@ pub enum BinTree {
     Leaf(Label),
 }
 
+impl BinTree {
+    pub fn top_down(&self) -> &Self {
+        self
+    }
+}
+
 impl Constructable for BinTree {
     fn new_inner(left: Self, right: Self) -> Self {
         BinTree::Node(Box::new((left, right)))
@@ -151,8 +157,8 @@ impl Constructable for BinTree {
     }
 }
 
-impl BinaryTreeTopDown for BinTree {
-    fn children(&self) -> Option<(&Self, &Self)> {
+impl TopDownCursor for &BinTree {
+    fn children(&self) -> Option<(Self, Self)> {
         match self {
             BinTree::Node(b) => Some((&b.as_ref().0, &b.as_ref().1)),
             BinTree::Leaf(_) => None,

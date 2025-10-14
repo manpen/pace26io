@@ -13,7 +13,7 @@ pub trait NewickWriter {
     /// );
     ///
     /// let mut buffer : Vec<u8> = Vec::new();
-    /// tree.write_newick(&mut buffer).unwrap();
+    /// tree.top_down().write_newick(&mut buffer).unwrap();
     /// assert_eq!(String::from_utf8(buffer).unwrap(), "(1,2);");
     /// ```
     fn write_newick(&self, writer: &mut impl Write) -> std::io::Result<()> {
@@ -32,7 +32,7 @@ pub trait NewickWriter {
     ///         BinTree::new_leaf(Label(3))
     /// );
     ///
-    /// assert_eq!(tree.to_newick_string(), "(2,3);");
+    /// assert_eq!(tree.top_down().to_newick_string(), "(2,3);");
     /// ```
     fn to_newick_string(&self) -> String {
         let mut buffer: Vec<u8> = Vec::new();

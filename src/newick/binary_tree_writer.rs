@@ -1,7 +1,7 @@
 use super::{binary_tree::*, *};
 use std::io::Write;
 
-impl<B: BinaryTreeTopDown> NewickWriter for B {
+impl<B: TopDownCursor> NewickWriter for B {
     fn write_newick_inner(&self, writer: &mut impl Write) -> std::io::Result<()> {
         if let Some((left, right)) = self.children() {
             write!(writer, "(")?;
@@ -23,7 +23,7 @@ mod test {
 
     fn to_string(tree: BinTree) -> String {
         let mut buffer: Vec<u8> = Vec::new();
-        tree.write_newick(&mut buffer).unwrap();
+        tree.top_down().write_newick(&mut buffer).unwrap();
         String::from_utf8(buffer).unwrap()
     }
 

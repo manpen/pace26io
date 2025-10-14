@@ -89,7 +89,7 @@ mod test {
     #[test]
     fn leaf() {
         let tree = BinTreeBuilder::new().parse_newick_from_str("132;").unwrap();
-        assert_eq!(tree.leaf_label(), Some(Label(132)));
+        assert_eq!(tree.top_down().leaf_label(), Some(Label(132)));
     }
 
     macro_rules! parser_error_test {
@@ -125,18 +125,21 @@ mod test {
         let tree = BinTreeBuilder::new()
             .parse_newick_from_lexer(&mut lexer)
             .expect("A valid binary tree");
-        let lc = tree.left_child().unwrap();
+        let lc = tree.top_down().left_child().unwrap();
 
         assert_eq!(lc.left_child().unwrap().leaf_label().unwrap(), Label(0));
         assert_eq!(lc.right_child().unwrap().leaf_label().unwrap(), Label(1));
-        assert_eq!(tree.right_child().unwrap().leaf_label().unwrap(), Label(2));
+        assert_eq!(
+            tree.top_down().right_child().unwrap().leaf_label().unwrap(),
+            Label(2)
+        );
     }
 
     #[test]
     fn parser_writer_roundtrip() {
         fn test_string(text: &str) {
             let tree = BinTreeBuilder::new().parse_newick_from_str(text).unwrap();
-            assert_eq!(text, tree.to_newick_string());
+            assert_eq!(text, tree.top_down().to_newick_string());
         }
 
         test_string("1;");
