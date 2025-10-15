@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2024"
 authors = ["Manuel Penschuck"]
 description = "Utilities to read PACE26 instances and write answers"
-license = "MIT"
+license = "GPL-3.0-or-later"
 
 [dependencies]
 thiserror = "2.0.17"
