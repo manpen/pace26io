@@ -7,6 +7,10 @@ pub trait Buildable {
     type Node;
     fn new_inner(&mut self, left: Self::Node, right: Self::Node) -> Self::Node;
     fn new_leaf(&mut self, label: Label) -> Self::Node;
+
+    fn make_root(&mut self, root: Self::Node) -> Self::Node {
+        root
+    }
 }
 
 pub trait Constructable {

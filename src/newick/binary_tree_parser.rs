@@ -78,7 +78,7 @@ impl<B: Buildable> BinaryTreeParser for B {
             ParserError::ExpectedEnd { token }
         })?;
 
-        Ok(tree)
+        Ok(self.make_root(tree))
     }
 }
 
