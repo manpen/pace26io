@@ -1,5 +1,6 @@
 pub mod bin_tree;
 pub use bin_tree::*;
+pub mod depth_first_search;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Label(pub u32);
