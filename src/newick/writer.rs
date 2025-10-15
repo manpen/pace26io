@@ -5,7 +5,7 @@ pub trait NewickWriter {
     ///
     /// # Example
     /// ```
-    /// use pace26io::newick::*;
+    /// use pace26io::{binary_tree::*, newick::*};
     ///
     /// let mut builder = BinTreeBuilder::default();
     /// let l1 = builder.new_leaf(Label(1));
@@ -25,7 +25,7 @@ pub trait NewickWriter {
     ///
     /// # Example
     /// ```
-    /// use pace26io::newick::*;
+    /// use pace26io::{binary_tree::*, newick::*};
     ///
     /// let mut builder = BinTreeBuilder::default();
     /// let l1 = builder.new_leaf(Label(2));

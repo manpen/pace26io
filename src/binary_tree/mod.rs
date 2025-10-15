@@ -1,3 +1,6 @@
+pub mod bin_tree;
+pub use bin_tree::*;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Label(pub u32);
 
@@ -8,7 +11,7 @@ pub trait TreeBuilder {
     ///
     /// # Example
     /// ```
-    /// use pace26io::newick::binary_tree::*;
+    /// use pace26io::binary_tree::*;
     ///
     /// let mut builder = BinTreeBuilder::default();
     /// let l1 = builder.new_leaf(Label(1));
@@ -24,7 +27,7 @@ pub trait TreeBuilder {
     ///
     /// # Example
     /// ```
-    /// use pace26io::newick::binary_tree::*;
+    /// use pace26io::binary_tree::*;
     ///
     /// let mut builder = BinTreeBuilder::default();
     /// let leaf = builder.new_leaf(Label(42));
@@ -39,7 +42,7 @@ pub trait TreeBuilder {
     ///
     /// # Example
     /// ```
-    /// use pace26io::newick::binary_tree::*;
+    /// use pace26io::binary_tree::*;
     ///
     /// let mut builder = BinTreeBuilder::default();
     /// let l1 = builder.new_leaf(Label(1));
@@ -60,7 +63,7 @@ pub trait TopDownCursor: Sized {
     ///
     /// # Example
     /// ```
-    /// use pace26io::newick::binary_tree::*;
+    /// use pace26io::binary_tree::*;
     ///
     /// let mut builder = BinTreeBuilder::default();
     /// let l1 = builder.new_leaf(Label(1));
@@ -78,7 +81,7 @@ pub trait TopDownCursor: Sized {
     ///
     /// # Example
     /// ```
-    /// use pace26io::newick::binary_tree::*;
+    /// use pace26io::binary_tree::*;
     ///
     /// let mut builder = BinTreeBuilder::default();
     /// let left_leaf = builder.new_leaf(Label(3141));
@@ -95,7 +98,7 @@ pub trait TopDownCursor: Sized {
     ///
     /// # Example
     /// ```
-    /// use pace26io::newick::binary_tree::*;
+    /// use pace26io::binary_tree::*;
     ///
     /// let mut builder = BinTreeBuilder::default();
     /// let left_leaf = builder.new_leaf(Label(3141));
@@ -112,7 +115,7 @@ pub trait TopDownCursor: Sized {
     ///
     /// # Example
     /// ```
-    /// use pace26io::newick::binary_tree::*;
+    /// use pace26io::binary_tree::*;
     ///
     /// let mut builder = BinTreeBuilder::default();
     /// let leaf = builder.new_leaf(Label(1337));
@@ -127,7 +130,7 @@ pub trait TopDownCursor: Sized {
     ///
     /// # Example
     /// ```
-    /// use pace26io::newick::binary_tree::*;
+    /// use pace26io::binary_tree::*;
     ///
     /// let mut builder = BinTreeBuilder::default();
     /// let leaf = builder.new_leaf(Label(1));
@@ -144,7 +147,7 @@ pub trait TopDownCursor: Sized {
     ///
     /// # Example
     /// ```
-    /// use pace26io::newick::binary_tree::*;
+    /// use pace26io::binary_tree::*;
     ///
     /// let mut builder = BinTreeBuilder::default();
     /// let leaf = builder.new_leaf(Label(1));
@@ -155,49 +158,5 @@ pub trait TopDownCursor: Sized {
     /// ```
     fn is_leaf(&self) -> bool {
         self.leaf_label().is_some()
-    }
-}
-
-/// Minimalistic implementation of a binary tree without any meta information
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum BinTree {
-    Node(Box<(BinTree, BinTree)>),
-    Leaf(Label),
-}
-
-impl BinTree {
-    pub fn top_down(&self) -> &Self {
-        self
-    }
-}
-
-impl TopDownCursor for &BinTree {
-    fn children(&self) -> Option<(Self, Self)> {
-        match self {
-            BinTree::Node(b) => Some((&b.as_ref().0, &b.as_ref().1)),
-            BinTree::Leaf(_) => None,
-        }
-    }
-
-    fn leaf_label(&self) -> Option<Label> {
-        match self {
-            BinTree::Leaf(l) => Some(*l),
-            BinTree::Node(_) => None,
-        }
-    }
-}
-
-#[derive(Default)]
-pub struct BinTreeBuilder();
-
-impl TreeBuilder for BinTreeBuilder {
-    type Node = BinTree;
-
-    fn new_inner(&mut self, left: Self::Node, right: Self::Node) -> Self::Node {
-        BinTree::Node(Box::new((left, right)))
-    }
-
-    fn new_leaf(&mut self, label: Label) -> Self::Node {
-        BinTree::Leaf(label)
     }
 }

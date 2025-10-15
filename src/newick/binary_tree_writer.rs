@@ -1,4 +1,4 @@
-use super::{binary_tree::*, *};
+use super::{super::binary_tree::*, *};
 use std::io::Write;
 
 impl<B: TopDownCursor> NewickWriter for B {
@@ -19,7 +19,7 @@ impl<B: TopDownCursor> NewickWriter for B {
 
 #[cfg(test)]
 mod test {
-    use crate::newick::{binary_tree::*, binary_tree_writer::NewickWriter};
+    use super::*;
 
     fn to_string(tree: BinTree) -> String {
         let mut buffer: Vec<u8> = Vec::new();
