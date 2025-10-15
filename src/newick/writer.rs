@@ -7,10 +7,10 @@ pub trait NewickWriter {
     /// ```
     /// use pace26io::newick::*;
     ///
-    /// let tree = BinTree::new_inner(
-    ///         BinTree::new_leaf(Label(1)),
-    ///         BinTree::new_leaf(Label(2))
-    /// );
+    /// let mut builder = BinTreeBuilder::default();
+    /// let l1 = builder.new_leaf(Label(1));
+    /// let l2 = builder.new_leaf(Label(2));
+    /// let tree = builder.new_inner(l1, l2);
     ///
     /// let mut buffer : Vec<u8> = Vec::new();
     /// tree.top_down().write_newick(&mut buffer).unwrap();
@@ -27,10 +27,10 @@ pub trait NewickWriter {
     /// ```
     /// use pace26io::newick::*;
     ///
-    /// let tree = BinTree::new_inner(
-    ///         BinTree::new_leaf(Label(2)),
-    ///         BinTree::new_leaf(Label(3))
-    /// );
+    /// let mut builder = BinTreeBuilder::default();
+    /// let l1 = builder.new_leaf(Label(2));
+    /// let l2 = builder.new_leaf(Label(3));
+    /// let tree = builder.new_inner(l1, l2);
     ///
     /// assert_eq!(tree.top_down().to_newick_string(), "(2,3);");
     /// ```

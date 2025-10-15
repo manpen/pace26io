@@ -1,34 +1,24 @@
-use std::marker::PhantomData;
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Label(pub u32);
 
-pub trait Buildable {
+pub trait TreeBuilder {
     type Node;
-    fn new_inner(&mut self, left: Self::Node, right: Self::Node) -> Self::Node;
-    fn new_leaf(&mut self, label: Label) -> Self::Node;
 
-    fn make_root(&mut self, root: Self::Node) -> Self::Node {
-        root
-    }
-}
-
-pub trait Constructable {
     /// Creates a new inner node with the two children provided.
     ///
     /// # Example
     /// ```
     /// use pace26io::newick::binary_tree::*;
     ///
-    /// let root = BinTree::new_inner(
-    ///     BinTree::new_leaf(Label(1)),
-    ///     BinTree::new_leaf(Label(2))
-    /// );
+    /// let mut builder = BinTreeBuilder::default();
+    /// let l1 = builder.new_leaf(Label(1));
+    /// let l2 = builder.new_leaf(Label(2));
+    /// let root = builder.new_inner(l1,l2);
     ///
     /// assert!( root.top_down().is_inner());
     /// assert!(!root.top_down().is_leaf());
     /// ```
-    fn new_inner(left: Self, right: Self) -> Self;
+    fn new_inner(&mut self, left: Self::Node, right: Self::Node) -> Self::Node;
 
     /// Creates a new leaf node with the label provided.
     ///
@@ -36,11 +26,33 @@ pub trait Constructable {
     /// ```
     /// use pace26io::newick::binary_tree::*;
     ///
-    /// let leaf = BinTree::new_leaf(Label(42));
+    /// let mut builder = BinTreeBuilder::default();
+    /// let leaf = builder.new_leaf(Label(42));
     /// assert!( leaf.top_down().is_leaf());
     /// assert!(!leaf.top_down().is_inner());
+    /// ```    
+    fn new_leaf(&mut self, label: Label) -> Self::Node;
+
+    /// Declares a node a root. Depending on the tree
+    /// implementation this may be a no-op, or may trigger
+    /// the computation of meta information.
+    ///
+    /// # Example
     /// ```
-    fn new_leaf(label: Label) -> Self;
+    /// use pace26io::newick::binary_tree::*;
+    ///
+    /// let mut builder = BinTreeBuilder::default();
+    /// let l1 = builder.new_leaf(Label(1));
+    /// let l2 = builder.new_leaf(Label(2));
+    /// let root = builder.new_inner(l1,l2);
+    /// let root = builder.make_root(root);
+    ///
+    /// assert!( root.top_down().is_inner());
+    /// assert!(!root.top_down().is_leaf());
+    /// ```
+    fn make_root(&mut self, root: Self::Node) -> Self::Node {
+        root
+    }
 }
 
 pub trait TopDownCursor: Sized {
@@ -50,10 +62,13 @@ pub trait TopDownCursor: Sized {
     /// ```
     /// use pace26io::newick::binary_tree::*;
     ///
-    /// let leaf = BinTree::new_leaf(Label(1));
-    /// let root = BinTree::new_inner(leaf.clone(), leaf.clone());
+    /// let mut builder = BinTreeBuilder::default();
+    /// let l1 = builder.new_leaf(Label(1));
+    /// assert!(l1.top_down().children().is_none());
     ///
-    /// assert!(leaf.top_down().children().is_none());
+    /// let l2 = builder.new_leaf(Label(2));
+    /// let root = builder.new_inner(l1, l2);
+    ///
     /// assert!(root.top_down().children().is_some());
     /// assert!(root.top_down().children().unwrap().0.is_leaf());
     /// ```
@@ -65,9 +80,10 @@ pub trait TopDownCursor: Sized {
     /// ```
     /// use pace26io::newick::binary_tree::*;
     ///
-    /// let left_leaf = BinTree::new_leaf(Label(3141));
-    /// let right_leaf = BinTree::new_leaf(Label(1234));
-    /// let root = BinTree::new_inner(left_leaf, right_leaf);
+    /// let mut builder = BinTreeBuilder::default();
+    /// let left_leaf = builder.new_leaf(Label(3141));
+    /// let right_leaf = builder.new_leaf(Label(1234));
+    /// let root = builder.new_inner(left_leaf, right_leaf);
     ///
     /// assert_eq!(root.top_down().left_child().unwrap().leaf_label(), Some(Label(3141)));
     /// ```
@@ -81,9 +97,10 @@ pub trait TopDownCursor: Sized {
     /// ```
     /// use pace26io::newick::binary_tree::*;
     ///
-    /// let left_leaf = BinTree::new_leaf(Label(3141));
-    /// let right_leaf = BinTree::new_leaf(Label(1234));
-    /// let root = BinTree::new_inner(left_leaf, right_leaf);
+    /// let mut builder = BinTreeBuilder::default();
+    /// let left_leaf = builder.new_leaf(Label(3141));
+    /// let right_leaf = builder.new_leaf(Label(1234));
+    /// let root = builder.new_inner(left_leaf, right_leaf);
     ///
     /// assert_eq!(root.top_down().right_child().unwrap().leaf_label(), Some(Label(1234)));
     /// ```
@@ -97,8 +114,9 @@ pub trait TopDownCursor: Sized {
     /// ```
     /// use pace26io::newick::binary_tree::*;
     ///
-    /// let leaf = BinTree::new_leaf(Label(1337));
-    /// let root = BinTree::new_inner(leaf.clone(), leaf.clone());
+    /// let mut builder = BinTreeBuilder::default();
+    /// let leaf = builder.new_leaf(Label(1337));
+    /// let root = builder.new_inner(leaf.clone(), leaf.clone());
     ///
     /// assert_eq!(leaf.top_down().leaf_label().unwrap(), Label(1337));
     /// assert!(   root.top_down().leaf_label().is_none());
@@ -111,8 +129,9 @@ pub trait TopDownCursor: Sized {
     /// ```
     /// use pace26io::newick::binary_tree::*;
     ///
-    /// let leaf = BinTree::new_leaf(Label(1));
-    /// let root = BinTree::new_inner(leaf.clone(), leaf.clone());
+    /// let mut builder = BinTreeBuilder::default();
+    /// let leaf = builder.new_leaf(Label(1));
+    /// let root = builder.new_inner(leaf.clone(), leaf.clone());
     ///
     /// assert!( root.top_down().is_inner());
     /// assert!(!leaf.top_down().is_inner());
@@ -127,8 +146,9 @@ pub trait TopDownCursor: Sized {
     /// ```
     /// use pace26io::newick::binary_tree::*;
     ///
-    /// let leaf = BinTree::new_leaf(Label(1));
-    /// let root = BinTree::new_inner(leaf.clone(), leaf.clone());
+    /// let mut builder = BinTreeBuilder::default();
+    /// let leaf = builder.new_leaf(Label(1));
+    /// let root = builder.new_inner(leaf.clone(), leaf.clone());
     ///
     /// assert!(!root.top_down().is_leaf());
     /// assert!( leaf.top_down().is_leaf());
@@ -151,16 +171,6 @@ impl BinTree {
     }
 }
 
-impl Constructable for BinTree {
-    fn new_inner(left: Self, right: Self) -> Self {
-        BinTree::Node(Box::new((left, right)))
-    }
-
-    fn new_leaf(label: Label) -> Self {
-        BinTree::Leaf(label)
-    }
-}
-
 impl TopDownCursor for &BinTree {
     fn children(&self) -> Option<(Self, Self)> {
         match self {
@@ -178,24 +188,16 @@ impl TopDownCursor for &BinTree {
 }
 
 #[derive(Default)]
-pub struct ConstrToBuilderAdapter<C: Constructable>(PhantomData<C>);
+pub struct BinTreeBuilder();
 
-impl<C: Constructable> ConstrToBuilderAdapter<C> {
-    pub fn new() -> Self {
-        Self(Default::default())
-    }
-}
-
-impl<C: Constructable> Buildable for ConstrToBuilderAdapter<C> {
-    type Node = C;
+impl TreeBuilder for BinTreeBuilder {
+    type Node = BinTree;
 
     fn new_inner(&mut self, left: Self::Node, right: Self::Node) -> Self::Node {
-        C::new_inner(left, right)
+        BinTree::Node(Box::new((left, right)))
     }
 
     fn new_leaf(&mut self, label: Label) -> Self::Node {
-        C::new_leaf(label)
+        BinTree::Leaf(label)
     }
 }
-
-pub type BinTreeBuilder = ConstrToBuilderAdapter<BinTree>;

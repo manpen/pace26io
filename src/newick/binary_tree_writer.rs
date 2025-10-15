@@ -29,17 +29,18 @@ mod test {
 
     #[test]
     fn leaf() {
-        assert_eq!(to_string(BinTree::new_leaf(Label(1234))), "1234;");
+        let tree = BinTreeBuilder::default().new_leaf(Label(1234));
+        assert_eq!(to_string(tree), "1234;");
     }
 
     #[test]
     fn pair() {
-        assert_eq!(
-            to_string(BinTree::new_inner(
-                BinTree::new_leaf(Label(1234)),
-                BinTree::new_leaf(Label(5678))
-            )),
-            "(1234,5678);"
-        );
+        let mut build = BinTreeBuilder::default();
+
+        let l1 = build.new_leaf(Label(1234));
+        let l2 = build.new_leaf(Label(5678));
+        let tree = build.new_inner(l1, l2);
+
+        assert_eq!(to_string(tree), "(1234,5678);");
     }
 }

@@ -23,7 +23,7 @@ pub enum ParserError {
     Lexer(#[from] LexerError),
 }
 
-pub trait BinaryTreeParser: Buildable + Sized {
+pub trait BinaryTreeParser: TreeBuilder + Sized {
     fn parse_newick_from_lexer(&mut self, lexer: &mut Lexer) -> Result<Self::Node, ParserError>;
 
     fn parse_newick_from_str(&mut self, text: &str) -> Result<Self::Node, ParserError> {
@@ -45,7 +45,7 @@ fn assert_next_token_else(
     }
 }
 
-fn parse_inner<B: Buildable>(builder: &mut B, lexer: &mut Lexer) -> Result<B::Node, ParserError> {
+fn parse_inner<B: TreeBuilder>(builder: &mut B, lexer: &mut Lexer) -> Result<B::Node, ParserError> {
     let token = lexer.next().ok_or(ParserError::UnexpectedEnd)??;
 
     match token.token_type {
@@ -70,7 +70,7 @@ fn parse_inner<B: Buildable>(builder: &mut B, lexer: &mut Lexer) -> Result<B::No
     }
 }
 
-impl<B: Buildable> BinaryTreeParser for B {
+impl<B: TreeBuilder> BinaryTreeParser for B {
     fn parse_newick_from_lexer(&mut self, lexer: &mut Lexer) -> Result<Self::Node, ParserError> {
         let tree = parse_inner(self, lexer)?;
 
@@ -88,7 +88,9 @@ mod test {
 
     #[test]
     fn leaf() {
-        let tree = BinTreeBuilder::new().parse_newick_from_str("132;").unwrap();
+        let tree = BinTreeBuilder::default()
+            .parse_newick_from_str("132;")
+            .unwrap();
         assert_eq!(tree.top_down().leaf_label(), Some(Label(132)));
     }
 
@@ -96,7 +98,7 @@ mod test {
         ($ident:ident, $text:expr, $expect:pat) => {
             #[test]
             fn $ident() {
-                let result = BinTreeBuilder::new()
+                let result = BinTreeBuilder::default()
                     .parse_newick_from_str($text)
                     .unwrap_err();
                 assert!(matches!(result, $expect), "Got: {result:?}");
@@ -122,7 +124,7 @@ mod test {
     fn binary() {
         let mut lexer = Lexer::new(" ( ( 0 , 1 ) , 2 ) ;");
         lexer.allow_whitespaces();
-        let tree = BinTreeBuilder::new()
+        let tree = BinTreeBuilder::default()
             .parse_newick_from_lexer(&mut lexer)
             .expect("A valid binary tree");
         let lc = tree.top_down().left_child().unwrap();
@@ -138,7 +140,9 @@ mod test {
     #[test]
     fn parser_writer_roundtrip() {
         fn test_string(text: &str) {
-            let tree = BinTreeBuilder::new().parse_newick_from_str(text).unwrap();
+            let tree = BinTreeBuilder::default()
+                .parse_newick_from_str(text)
+                .unwrap();
             assert_eq!(text, tree.top_down().to_newick_string());
         }
 
