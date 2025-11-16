@@ -60,12 +60,18 @@ pub trait InstanceVisitor {
     fn visit_unrecognized_line(&mut self, _lineno: usize, _line: &str) -> Action {
         Action::Continue
     }
+    fn visit_stride_line(&mut self, _lineno: usize, _line: &str, _key : &str, _value : &str) -> Action {
+        Action::Continue
+    }
 }
 
 #[derive(Error, Debug)]
 pub enum ReaderError {
-    #[error("Identified line {} as header. Invalid format", lineno+1)]
+    #[error("Identified line {} as header. Expected '#p {{numtree}} {{numleaves}}'", lineno+1)]
     InvalidHeaderLine { lineno: usize },
+
+    #[error("Identified line {} as stride line. Expected '#s {{key}}: {{value}}'", lineno+1)]
+    InvalidStrideLine { lineno: usize },
 
     #[error("Found multiple headers. Lines {} and {}", lineno0+1, lineno1+1)]
     MultipleHeaders { lineno0: usize, lineno1: usize },
@@ -84,6 +90,15 @@ fn try_parse_header(line: &str) -> Option<(usize, usize)> {
     let num_leaves = parts.next().and_then(|x| x.parse::<usize>().ok())?;
 
     Some((num_trees, num_leaves))
+}
+
+fn try_parse_stride_line(line: &str) -> Option<(&str, &str)> {
+    let split = line.find(':')?;
+
+    let key = line[2..split].trim();
+    let value = line[split + 1..].trim();
+
+    Some((key, value))
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -143,6 +158,15 @@ impl<'a, V: InstanceVisitor> InstanceReader<'a, V> {
                     } else {
                         return Err(ReaderError::InvalidHeaderLine { lineno });
                     }
+                } else if content.starts_with("#s") {
+                    // stride line in the format "#s key: value"
+                    if let Some((key, value)) = try_parse_stride_line(content) {
+                        if self.visitor.visit_stride_line(lineno, content, key, value) == Action::Terminate {
+                            return Ok(());
+                        }
+                    } else {
+                        return Err(ReaderError::InvalidStrideLine { lineno });
+                    }
                 } else {
                     // unrecognized line
                     if self.visitor.visit_unrecognized_dash_line(lineno, content)
@@ -180,6 +204,7 @@ mod tests {
         pub extra_whitespace_lines: Vec<(usize, String)>,
         pub unrecognized_dash_lines: Vec<(usize, String)>,
         pub unrecognized_lines: Vec<(usize, String)>,
+        pub stride_lines: Vec<(usize, String, String, String)>,
     }
 
     impl TestVisitor {
@@ -190,6 +215,7 @@ mod tests {
                 extra_whitespace_lines: vec![],
                 unrecognized_dash_lines: vec![],
                 unrecognized_lines: vec![],
+                stride_lines: vec![],
             }
         }
     }
@@ -218,6 +244,11 @@ mod tests {
 
         fn visit_unrecognized_line(&mut self, lineno: usize, line: &str) -> Action {
             self.unrecognized_lines.push((lineno, line.to_string()));
+            Action::Continue
+        }
+
+        fn visit_stride_line(&mut self, lineno: usize, line: &str, key: &str, value: &str) -> Action {
+            self.stride_lines.push((lineno, line.to_string(), key.to_string(), value.to_string()));
             Action::Continue
         }
     }
@@ -286,5 +317,16 @@ mod tests {
             visitor.unrecognized_lines,
             vec![(5, "(3)missing semicolon".to_string())]
         );
+    }
+
+    #[test]
+    fn input_with_stride_line() {
+        let input = "#p 2 3\n#s stride_key: somevalue\n(1);\n";
+        let mut visitor = TestVisitor::new();
+        let mut reader = InstanceReader::new(&mut visitor);
+        reader.read(input.as_bytes()).unwrap();
+
+        assert_eq!(visitor.stride_lines,
+                   vec![(1, "#s stride_key: somevalue".to_string(), "stride_key".to_string(), "somevalue".to_string())]);
     }
 }
