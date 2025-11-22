@@ -60,7 +60,13 @@ pub trait InstanceVisitor {
     fn visit_unrecognized_line(&mut self, _lineno: usize, _line: &str) -> Action {
         Action::Continue
     }
-    fn visit_stride_line(&mut self, _lineno: usize, _line: &str, _key : &str, _value : &str) -> Action {
+    fn visit_stride_line(
+        &mut self,
+        _lineno: usize,
+        _line: &str,
+        _key: &str,
+        _value: &str,
+    ) -> Action {
         Action::Continue
     }
 }
@@ -161,7 +167,9 @@ impl<'a, V: InstanceVisitor> InstanceReader<'a, V> {
                 } else if content.starts_with("#s") {
                     // stride line in the format "#s key: value"
                     if let Some((key, value)) = try_parse_stride_line(content) {
-                        if self.visitor.visit_stride_line(lineno, content, key, value) == Action::Terminate {
+                        if self.visitor.visit_stride_line(lineno, content, key, value)
+                            == Action::Terminate
+                        {
                             return Ok(());
                         }
                     } else {
@@ -247,8 +255,15 @@ mod tests {
             Action::Continue
         }
 
-        fn visit_stride_line(&mut self, lineno: usize, line: &str, key: &str, value: &str) -> Action {
-            self.stride_lines.push((lineno, line.to_string(), key.to_string(), value.to_string()));
+        fn visit_stride_line(
+            &mut self,
+            lineno: usize,
+            line: &str,
+            key: &str,
+            value: &str,
+        ) -> Action {
+            self.stride_lines
+                .push((lineno, line.to_string(), key.to_string(), value.to_string()));
             Action::Continue
         }
     }
@@ -326,7 +341,14 @@ mod tests {
         let mut reader = InstanceReader::new(&mut visitor);
         reader.read(input.as_bytes()).unwrap();
 
-        assert_eq!(visitor.stride_lines,
-                   vec![(1, "#s stride_key: somevalue".to_string(), "stride_key".to_string(), "somevalue".to_string())]);
+        assert_eq!(
+            visitor.stride_lines,
+            vec![(
+                1,
+                "#s stride_key: somevalue".to_string(),
+                "stride_key".to_string(),
+                "somevalue".to_string()
+            )]
+        );
     }
 }

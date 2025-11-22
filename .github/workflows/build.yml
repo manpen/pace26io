@@ -1,0 +1,95 @@
+name: Rust CI
+on: [push, pull_request]
+
+jobs:
+  build_linux:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        run: |
+          rustup component add rustfmt
+          rustup component add clippy
+
+      - name: Cache Cargo registry
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: cargo-registry-linux
+      
+      - name: Cache Cargo build
+        uses: actions/cache@v3
+        with:
+          path: target
+          key: cargo-build-linux
+
+      - name: Run tests
+        run: cargo test --verbose 
+
+      - name: Run tests (release)
+        run: cargo test --verbose --release
+
+      - name: Run Cargo Clippy
+        run: cargo clippy
+
+      - name: Run Cargo Format
+        run: cargo fmt --check
+
+      - name: Run Cargo Doc
+        run: cargo doc --no-deps
+
+  build_osx:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Cache Cargo registry
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: cargo-registry-osx
+      
+      - name: Cache Cargo build
+        uses: actions/cache@v3
+        with:
+          path: target
+          key: cargo-build-osx
+      
+      - name: Run tests
+        run: cargo test 
+
+      - name: Run tests (release)
+        run: cargo test --release
+
+  build_win:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Cache Cargo registry
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: cargo-registry-windows
+      
+      - name: Cache Cargo build
+        uses: actions/cache@v3
+        with:
+          path: target
+          key: cargo-build-windows
+      
+      - name: Run tests
+        run: cargo test 
+
+      - name: Run tests (release)
+        run: cargo test --release
