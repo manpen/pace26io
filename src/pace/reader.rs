@@ -1,3 +1,4 @@
+use crate::pace::parameters::tree_decomposition::TreeDecomposition;
 use std::io::BufRead;
 use thiserror::Error;
 
@@ -23,10 +24,10 @@ use thiserror::Error;
 ///      Action::Continue
 ///   }
 ///
-///  fn visit_tree(&mut self, lineno: usize, line: &str) -> Action {
-///    println!("Tree at line {}: {}", lineno + 1, line);
-///    Action::Continue
-///  }
+///   fn visit_tree(&mut self, lineno: usize, line: &str) -> Action {
+///      println!("Tree at line {}: {}", lineno + 1, line);
+///      Action::Continue
+///   }
 /// }
 ///
 /// let input = "#p 2 3\n(1);\n(2);";
@@ -69,6 +70,12 @@ pub trait InstanceVisitor {
     ) -> Action {
         Action::Continue
     }
+
+    const VISIT_PARAM_TREE_DECOMPOSITION: bool = false;
+    /// Is only called if `Self::VISIT_PARAM_TREE_DECOMPOSITION == true`.
+    fn visit_param_tree_decomposition(&mut self, _lineno: usize, _td: TreeDecomposition) -> Action {
+        Action::Continue
+    }
 }
 
 #[derive(Error, Debug)]
@@ -78,6 +85,18 @@ pub enum ReaderError {
 
     #[error("Identified line {} as stride line. Expected '#s {{key}}: {{value}}'", lineno+1)]
     InvalidStrideLine { lineno: usize },
+
+    #[error("Identified line {} as parameter line. Expected '#x {{key}}: {{value}}'", lineno+1)]
+    InvalidParameterLine { lineno: usize },
+
+    #[error("Unknown parameter in line {}: {key}'", lineno+1)]
+    UnknownParameter { lineno: usize, key: String },
+
+    #[error("Invalid JSON in line {}: {err}", lineno + 1)]
+    InvalidJSON {
+        lineno: usize,
+        err: serde_json::Error,
+    },
 
     #[error("Found multiple headers. Lines {} and {}", lineno0+1, lineno1+1)]
     MultipleHeaders { lineno0: usize, lineno1: usize },
@@ -98,8 +117,9 @@ fn try_parse_header(line: &str) -> Option<(usize, usize)> {
     Some((num_trees, num_leaves))
 }
 
-fn try_parse_stride_line(line: &str) -> Option<(&str, &str)> {
-    let split = line.find(':')?;
+/// Expects a line `#X {key} {value}` and returns ({key}, {value}) if found
+fn try_split_key_value(line: &str) -> Option<(&str, &str)> {
+    let split = line[3..].find(' ')? + 3;
 
     let key = line[2..split].trim();
     let value = line[split + 1..].trim();
@@ -121,6 +141,15 @@ impl<'a, V: InstanceVisitor> InstanceReader<'a, V> {
     }
 
     pub fn read<R: BufRead>(&mut self, reader: R) -> ReaderResult<()> {
+        macro_rules! visit {
+            ($method : ident, $( $args:expr ),* $(,)? ) => {
+                if self.visitor.$method( $( $args ),*) == Action::Terminate
+                {
+                    return Ok(());
+                }
+            };
+        }
+
         let mut header_line = None;
         for (lineno, line) in reader.lines().enumerate() {
             let line = line?;
@@ -128,10 +157,7 @@ impl<'a, V: InstanceVisitor> InstanceReader<'a, V> {
 
             if content.len() != line.len() {
                 // line has extra whitespace
-                if self.visitor.visit_line_with_extra_whitespace(lineno, &line) == Action::Terminate
-                {
-                    return Ok(());
-                }
+                visit!(visit_line_with_extra_whitespace, lineno, &line);
             }
 
             // empty line
@@ -156,46 +182,56 @@ impl<'a, V: InstanceVisitor> InstanceReader<'a, V> {
                     }
 
                     if let Some((num_trees, num_leaves)) = try_parse_header(content) {
-                        if self.visitor.visit_header(lineno, num_trees, num_leaves)
-                            == Action::Terminate
-                        {
-                            return Ok(());
-                        }
+                        visit!(visit_header, lineno, num_trees, num_leaves);
                     } else {
                         return Err(ReaderError::InvalidHeaderLine { lineno });
                     }
                 } else if content.starts_with("#s") {
                     // stride line in the format "#s key: value"
-                    if let Some((key, value)) = try_parse_stride_line(content) {
-                        if self.visitor.visit_stride_line(lineno, content, key, value)
-                            == Action::Terminate
-                        {
-                            return Ok(());
-                        }
+                    if let Some((key, value)) = try_split_key_value(content) {
+                        visit!(visit_stride_line, lineno, content, key, value);
                     } else {
                         return Err(ReaderError::InvalidStrideLine { lineno });
                     }
+                } else if content.starts_with("#x") {
+                    if let Some((key, value)) = try_split_key_value(content) {
+                        match key {
+                            "treedecomp" => {
+                                if V::VISIT_PARAM_TREE_DECOMPOSITION {
+                                    match serde_json::from_str::<TreeDecomposition>(value) {
+                                        Ok(td) => {
+                                            visit!(visit_param_tree_decomposition, lineno, td);
+                                        }
+                                        Err(err) => {
+                                            return Err(ReaderError::InvalidJSON { lineno, err });
+                                        }
+                                    };
+                                }
+                            }
+
+                            _ => {
+                                return Err(ReaderError::UnknownParameter {
+                                    lineno,
+                                    key: key.into(),
+                                });
+                            }
+                        }
+                    } else {
+                        return Err(ReaderError::InvalidParameterLine { lineno });
+                    }
                 } else {
                     // unrecognized line
-                    if self.visitor.visit_unrecognized_dash_line(lineno, content)
-                        == Action::Terminate
-                    {
-                        return Ok(());
-                    }
+                    visit!(visit_unrecognized_dash_line, lineno, content);
                 }
                 continue;
             }
 
             if content.ends_with(";") {
-                if self.visitor.visit_tree(lineno, content) == Action::Terminate {
-                    return Ok(());
-                }
+                visit!(visit_tree, lineno, content);
                 continue;
             }
 
-            if self.visitor.visit_unrecognized_line(lineno, content) == Action::Terminate {
-                return Ok(());
-            }
+            visit!(visit_unrecognized_line, lineno, content);
         }
 
         Ok(())
@@ -206,6 +242,7 @@ impl<'a, V: InstanceVisitor> InstanceReader<'a, V> {
 mod tests {
     use super::*;
 
+    #[derive(Default)]
     struct TestVisitor {
         pub headers: Vec<(usize, usize, usize)>,
         pub trees: Vec<(usize, String)>,
@@ -213,19 +250,7 @@ mod tests {
         pub unrecognized_dash_lines: Vec<(usize, String)>,
         pub unrecognized_lines: Vec<(usize, String)>,
         pub stride_lines: Vec<(usize, String, String, String)>,
-    }
-
-    impl TestVisitor {
-        fn new() -> Self {
-            Self {
-                headers: vec![],
-                trees: vec![],
-                extra_whitespace_lines: vec![],
-                unrecognized_dash_lines: vec![],
-                unrecognized_lines: vec![],
-                stride_lines: vec![],
-            }
-        }
+        pub param_tree_decomp: Option<(usize, TreeDecomposition)>,
     }
 
     impl InstanceVisitor for TestVisitor {
@@ -266,13 +291,24 @@ mod tests {
                 .push((lineno, line.to_string(), key.to_string(), value.to_string()));
             Action::Continue
         }
+
+        const VISIT_PARAM_TREE_DECOMPOSITION: bool = true;
+        fn visit_param_tree_decomposition(
+            &mut self,
+            lineno: usize,
+            td: TreeDecomposition,
+        ) -> Action {
+            assert!(self.param_tree_decomp.is_none());
+            self.param_tree_decomp = Some((lineno, td));
+            Action::Continue
+        }
     }
 
     #[test]
     fn test_valid_input() {
         let input = "#p 2 3\n(1);\n# comment\n(2);\n";
 
-        let mut visitor = TestVisitor::new();
+        let mut visitor = TestVisitor::default();
         let mut reader = InstanceReader::new(&mut visitor);
         reader.read(input.as_bytes()).unwrap();
 
@@ -290,7 +326,7 @@ mod tests {
     fn input_with_whitespace() {
         let input = "#p 2 3\n (1);\n\n(2);";
 
-        let mut visitor = TestVisitor::new();
+        let mut visitor = TestVisitor::default();
         let mut reader = InstanceReader::new(&mut visitor);
         reader.read(input.as_bytes()).unwrap();
 
@@ -311,7 +347,7 @@ mod tests {
     fn input_with_unrecognized_lines() {
         let input = "#p 2 3\n (1);\n\n(2);\n#<illegal comment\n(3)missing semicolon";
 
-        let mut visitor = TestVisitor::new();
+        let mut visitor = TestVisitor::default();
         let mut reader = InstanceReader::new(&mut visitor);
         reader.read(input.as_bytes()).unwrap();
 
@@ -336,8 +372,8 @@ mod tests {
 
     #[test]
     fn input_with_stride_line() {
-        let input = "#p 2 3\n#s stride_key: somevalue\n(1);\n";
-        let mut visitor = TestVisitor::new();
+        let input = "#p 2 3\n#s stride_key somevalue\n(1);\n";
+        let mut visitor = TestVisitor::default();
         let mut reader = InstanceReader::new(&mut visitor);
         reader.read(input.as_bytes()).unwrap();
 
@@ -345,10 +381,67 @@ mod tests {
             visitor.stride_lines,
             vec![(
                 1,
-                "#s stride_key: somevalue".to_string(),
+                "#s stride_key somevalue".to_string(),
                 "stride_key".to_string(),
                 "somevalue".to_string()
             )]
+        );
+    }
+
+    #[test]
+    fn input_with_invalid_param() {
+        let input = "# comment\n#x foobar\n";
+        let mut visitor = TestVisitor::default();
+        let mut reader = InstanceReader::new(&mut visitor);
+        let res = reader.read(input.as_bytes());
+        if let Err(ReaderError::InvalidParameterLine { lineno }) = res {
+            assert_eq!(lineno, 1);
+        } else {
+            panic!("Wrong error");
+        }
+    }
+
+    #[test]
+    fn input_with_unknown_param() {
+        let input = "# comment\n# another comment\n#x foobar []\n";
+        let mut visitor = TestVisitor::default();
+        let mut reader = InstanceReader::new(&mut visitor);
+        let res = reader.read(input.as_bytes());
+        if let Err(ReaderError::UnknownParameter { lineno, key }) = res {
+            assert_eq!(lineno, 2);
+            assert_eq!(key, String::from("foobar"));
+        } else {
+            panic!("Wrong error");
+        }
+    }
+
+    #[test]
+    fn input_with_parameter_with_invalid_json() {
+        let input = "#x treedecomp [\n";
+        let mut visitor = TestVisitor::default();
+        let mut reader = InstanceReader::new(&mut visitor);
+        let res = reader.read(input.as_bytes());
+        assert!(matches!(res, Err(ReaderError::InvalidJSON { .. })));
+    }
+
+    #[test]
+    fn input_with_tree_decomp() {
+        let input = "#p 2 3\n#s stride_key somevalue\n(1);\n#x treedecomp [42,[[1,2],[3,4,5]],[[1,2],[3,4],[5,6]]]\n";
+
+        let mut visitor = TestVisitor::default();
+        let mut reader = InstanceReader::new(&mut visitor);
+        reader.read(input.as_bytes()).unwrap();
+
+        assert_eq!(
+            visitor.param_tree_decomp,
+            Some((
+                3,
+                TreeDecomposition {
+                    treewidth: 42,
+                    bags: vec![vec![1, 2], vec![3, 4, 5]],
+                    edges: vec![(1, 2), (3, 4), (5, 6)]
+                }
+            ))
         );
     }
 }
