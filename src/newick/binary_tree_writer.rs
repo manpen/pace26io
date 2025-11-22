@@ -39,7 +39,7 @@ mod test {
 
         let l1 = build.new_leaf(Label(1234));
         let l2 = build.new_leaf(Label(5678));
-        let tree = build.new_inner(l1, l2);
+        let tree = build.new_inner(NodeIdx::new(0), l1, l2);
 
         assert_eq!(to_string(tree), "(1234,5678);");
     }

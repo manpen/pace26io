@@ -5,7 +5,26 @@ pub mod depth_first_search;
 pub use depth_first_search::DepthFirstSearch;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct NodeIdx(pub u32);
+
+impl NodeIdx {
+    pub fn new(v: u32) -> Self {
+        NodeIdx(v)
+    }
+
+    pub fn incremented(self) -> Self {
+        NodeIdx(self.0 + 1)
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Label(pub u32);
+
+impl From<Label> for NodeIdx {
+    fn from(value: Label) -> Self {
+        NodeIdx(value.0)
+    }
+}
 
 pub trait TreeBuilder {
     type Node;
@@ -19,12 +38,12 @@ pub trait TreeBuilder {
     /// let mut builder = BinTreeBuilder::default();
     /// let l1 = builder.new_leaf(Label(1));
     /// let l2 = builder.new_leaf(Label(2));
-    /// let root = builder.new_inner(l1,l2);
+    /// let root = builder.new_inner(NodeIdx::new(0), l1,l2);
     ///
     /// assert!( root.top_down().is_inner());
     /// assert!(!root.top_down().is_leaf());
     /// ```
-    fn new_inner(&mut self, left: Self::Node, right: Self::Node) -> Self::Node;
+    fn new_inner(&mut self, id: NodeIdx, left: Self::Node, right: Self::Node) -> Self::Node;
 
     /// Creates a new leaf node with the label provided.
     ///
@@ -50,7 +69,7 @@ pub trait TreeBuilder {
     /// let mut builder = BinTreeBuilder::default();
     /// let l1 = builder.new_leaf(Label(1));
     /// let l2 = builder.new_leaf(Label(2));
-    /// let root = builder.new_inner(l1,l2);
+    /// let root = builder.new_inner(NodeIdx::new(0),l1,l2);
     /// let root = builder.make_root(root);
     ///
     /// assert!( root.top_down().is_inner());
@@ -73,7 +92,7 @@ pub trait TopDownCursor: Sized {
     /// assert!(l1.top_down().children().is_none());
     ///
     /// let l2 = builder.new_leaf(Label(2));
-    /// let root = builder.new_inner(l1, l2);
+    /// let root = builder.new_inner(NodeIdx::new(0), l1, l2);
     ///
     /// assert!(root.top_down().children().is_some());
     /// assert!(root.top_down().children().unwrap().0.is_leaf());
@@ -89,7 +108,7 @@ pub trait TopDownCursor: Sized {
     /// let mut builder = BinTreeBuilder::default();
     /// let left_leaf = builder.new_leaf(Label(3141));
     /// let right_leaf = builder.new_leaf(Label(1234));
-    /// let root = builder.new_inner(left_leaf, right_leaf);
+    /// let root = builder.new_inner(NodeIdx::new(0), left_leaf, right_leaf);
     ///
     /// assert_eq!(root.top_down().left_child().unwrap().leaf_label(), Some(Label(3141)));
     /// ```
@@ -106,7 +125,7 @@ pub trait TopDownCursor: Sized {
     /// let mut builder = BinTreeBuilder::default();
     /// let left_leaf = builder.new_leaf(Label(3141));
     /// let right_leaf = builder.new_leaf(Label(1234));
-    /// let root = builder.new_inner(left_leaf, right_leaf);
+    /// let root = builder.new_inner(NodeIdx::new(0), left_leaf, right_leaf);
     ///
     /// assert_eq!(root.top_down().right_child().unwrap().leaf_label(), Some(Label(1234)));
     /// ```
@@ -122,7 +141,7 @@ pub trait TopDownCursor: Sized {
     ///
     /// let mut builder = BinTreeBuilder::default();
     /// let leaf = builder.new_leaf(Label(1337));
-    /// let root = builder.new_inner(leaf.clone(), leaf.clone());
+    /// let root = builder.new_inner(NodeIdx::new(0), leaf.clone(), leaf.clone());
     ///
     /// assert_eq!(leaf.top_down().leaf_label().unwrap(), Label(1337));
     /// assert!(   root.top_down().leaf_label().is_none());
@@ -137,7 +156,7 @@ pub trait TopDownCursor: Sized {
     ///
     /// let mut builder = BinTreeBuilder::default();
     /// let leaf = builder.new_leaf(Label(1));
-    /// let root = builder.new_inner(leaf.clone(), leaf.clone());
+    /// let root = builder.new_inner(NodeIdx::new(0), leaf.clone(), leaf.clone());
     ///
     /// assert!( root.top_down().is_inner());
     /// assert!(!leaf.top_down().is_inner());
@@ -154,7 +173,7 @@ pub trait TopDownCursor: Sized {
     ///
     /// let mut builder = BinTreeBuilder::default();
     /// let leaf = builder.new_leaf(Label(1));
-    /// let root = builder.new_inner(leaf.clone(), leaf.clone());
+    /// let root = builder.new_inner(NodeIdx::new(0), leaf.clone(), leaf.clone());
     ///
     /// assert!(!root.top_down().is_leaf());
     /// assert!( leaf.top_down().is_leaf());
