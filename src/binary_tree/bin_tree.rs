@@ -35,7 +35,7 @@ pub struct BinTreeBuilder();
 impl TreeBuilder for BinTreeBuilder {
     type Node = BinTree;
 
-    fn new_inner(&mut self, left: Self::Node, right: Self::Node) -> Self::Node {
+    fn new_inner(&mut self, _id: NodeIdx, left: Self::Node, right: Self::Node) -> Self::Node {
         BinTree::Node(Box::new((left, right)))
     }
 

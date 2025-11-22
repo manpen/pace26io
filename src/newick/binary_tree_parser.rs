@@ -24,11 +24,19 @@ pub enum ParserError {
 }
 
 pub trait BinaryTreeParser: TreeBuilder + Sized {
-    fn parse_newick_from_lexer(&mut self, lexer: &mut Lexer) -> Result<Self::Node, ParserError>;
+    fn parse_newick_from_lexer(
+        &mut self,
+        lexer: &mut Lexer,
+        root_id: NodeIdx,
+    ) -> Result<Self::Node, ParserError>;
 
-    fn parse_newick_from_str(&mut self, text: &str) -> Result<Self::Node, ParserError> {
+    fn parse_newick_from_str(
+        &mut self,
+        text: &str,
+        root_id: NodeIdx,
+    ) -> Result<Self::Node, ParserError> {
         let mut lexer = Lexer::new(text);
-        self.parse_newick_from_lexer(&mut lexer)
+        self.parse_newick_from_lexer(&mut lexer, root_id)
     }
 }
 
@@ -45,34 +53,42 @@ fn assert_next_token_else(
     }
 }
 
-fn parse_inner<B: TreeBuilder>(builder: &mut B, lexer: &mut Lexer) -> Result<B::Node, ParserError> {
+fn parse_inner<B: TreeBuilder>(
+    builder: &mut B,
+    lexer: &mut Lexer,
+    own_id: NodeIdx,
+) -> Result<(B::Node, NodeIdx), ParserError> {
     let token = lexer.next().ok_or(ParserError::UnexpectedEnd)??;
 
     match token.token_type {
         TokenType::ParOpen => {
-            let left_child = parse_inner(builder, lexer)?;
+            let (left_child, next_id) = parse_inner(builder, lexer, own_id.incremented())?;
 
             assert_next_token_else(lexer, TokenType::Comma, |token| {
                 ParserError::ExpectedComma { token }
             })?;
 
-            let right_child = parse_inner(builder, lexer)?;
+            let (right_child, next_id) = parse_inner(builder, lexer, next_id)?;
 
             assert_next_token_else(lexer, TokenType::ParClose, |token| {
                 ParserError::ExpectedClosing { token }
             })?;
 
-            Ok(builder.new_inner(left_child, right_child))
+            Ok((builder.new_inner(own_id, left_child, right_child), next_id))
         }
 
-        TokenType::Number(x) => Ok(builder.new_leaf(Label(x))),
+        TokenType::Number(x) => Ok((builder.new_leaf(Label(x)), own_id)),
         _ => Err(ParserError::ExpectedNodeBegin { token }),
     }
 }
 
 impl<B: TreeBuilder> BinaryTreeParser for B {
-    fn parse_newick_from_lexer(&mut self, lexer: &mut Lexer) -> Result<Self::Node, ParserError> {
-        let tree = parse_inner(self, lexer)?;
+    fn parse_newick_from_lexer(
+        &mut self,
+        lexer: &mut Lexer,
+        root_id: NodeIdx,
+    ) -> Result<Self::Node, ParserError> {
+        let (tree, _) = parse_inner(self, lexer, root_id)?;
 
         assert_next_token_else(lexer, TokenType::Semicolon, |token| {
             ParserError::ExpectedEnd { token }
@@ -90,7 +106,7 @@ mod test {
     #[test]
     fn leaf() {
         let tree = BinTreeBuilder::default()
-            .parse_newick_from_str("132;")
+            .parse_newick_from_str("132;", NodeIdx::new(0))
             .unwrap();
         assert_eq!(tree.top_down().leaf_label(), Some(Label(132)));
     }
@@ -100,7 +116,7 @@ mod test {
             #[test]
             fn $ident() {
                 let result = BinTreeBuilder::default()
-                    .parse_newick_from_str($text)
+                    .parse_newick_from_str($text, NodeIdx(0))
                     .unwrap_err();
                 assert!(matches!(result, $expect), "Got: {result:?}");
             }
@@ -126,7 +142,7 @@ mod test {
         let mut lexer = Lexer::new(" ( ( 0 , 1 ) , 2 ) ;");
         lexer.allow_whitespaces();
         let tree = BinTreeBuilder::default()
-            .parse_newick_from_lexer(&mut lexer)
+            .parse_newick_from_lexer(&mut lexer, NodeIdx::new(0))
             .expect("A valid binary tree");
         let lc = tree.top_down().left_child().unwrap();
 
@@ -142,7 +158,7 @@ mod test {
     fn parser_writer_roundtrip() {
         fn test_string(text: &str) {
             let tree = BinTreeBuilder::default()
-                .parse_newick_from_str(text)
+                .parse_newick_from_str(text, NodeIdx::new(0))
                 .unwrap();
             assert_eq!(text, tree.top_down().to_newick_string());
         }

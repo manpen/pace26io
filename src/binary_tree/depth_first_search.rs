@@ -37,7 +37,7 @@ mod tests {
     #[test]
     fn dfs() {
         let tree = BinTreeBuilder::default()
-            .parse_newick_from_str("((3,1),2);")
+            .parse_newick_from_str("((3,1),2);", NodeIdx::new(0))
             .unwrap();
         let mut trav = tree.dfs();
 
