@@ -103,6 +103,24 @@ mod test {
     use super::*;
     use crate::newick::*;
 
+    fn navigate<T: TopDownCursor>(mut cursor: T, path: &str) -> Option<T> {
+        for x in path.chars() {
+            match x {
+                'l' => {
+                    cursor = cursor.left_child()?;
+                }
+
+                'r' => {
+                    cursor = cursor.right_child()?;
+                }
+
+                _ => panic!("Unknown char"),
+            }
+        }
+
+        Some(cursor)
+    }
+
     #[test]
     fn leaf() {
         let tree = BinTreeBuilder::default()
@@ -167,5 +185,24 @@ mod test {
         test_string("(1,2);");
         test_string("(1,(5,91234));");
         test_string("(((4,2),(7,1)),8);");
+    }
+
+    #[test]
+    fn parser_indexed_bintree() {
+        let tree = IndexedBinTreeBuilder::default()
+            .parse_newick_from_str("((1,2),(3,(5,4)));", NodeIdx::new(6))
+            .unwrap();
+
+        assert_eq!(tree.node_idx(), NodeIdx::new(6));
+
+        let td = tree.top_down();
+        assert_eq!(navigate(td, "l").unwrap().node_idx(), NodeIdx::new(7));
+        assert_eq!(navigate(td, "ll").unwrap().node_idx(), NodeIdx::new(1));
+        assert_eq!(navigate(td, "lr").unwrap().node_idx(), NodeIdx::new(2));
+        assert_eq!(navigate(td, "r").unwrap().node_idx(), NodeIdx::new(8));
+        assert_eq!(navigate(td, "rl").unwrap().node_idx(), NodeIdx::new(3));
+        assert_eq!(navigate(td, "rr").unwrap().node_idx(), NodeIdx::new(9));
+        assert_eq!(navigate(td, "rrl").unwrap().node_idx(), NodeIdx::new(5));
+        assert_eq!(navigate(td, "rrr").unwrap().node_idx(), NodeIdx::new(4));
     }
 }

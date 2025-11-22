@@ -1,5 +1,7 @@
 pub mod bin_tree;
 pub use bin_tree::*;
+pub mod indexed_bin_tree;
+pub use indexed_bin_tree::*;
 
 pub mod depth_first_search;
 pub use depth_first_search::DepthFirstSearch;
@@ -181,4 +183,11 @@ pub trait TopDownCursor: Sized {
     fn is_leaf(&self) -> bool {
         self.leaf_label().is_some()
     }
+}
+
+/// Tree with indexed inner nodes
+pub trait TreeWithNodeIdx {
+    /// Returns the index of the node. If the node is a leaf,
+    /// the leaf label is converted into a node index.
+    fn node_idx(&self) -> NodeIdx;
 }
