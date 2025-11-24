@@ -55,7 +55,7 @@ pub trait InstanceVisitor {
     fn visit_line_with_extra_whitespace(&mut self, _lineno: usize, _line: &str) -> Action {
         Action::Continue
     }
-    fn visit_unrecognized_dash_line(&mut self, _lineno: usize, _line: &str) -> Action {
+    fn visit_unrecognized_hash_line(&mut self, _lineno: usize, _line: &str) -> Action {
         Action::Continue
     }
     fn visit_unrecognized_line(&mut self, _lineno: usize, _line: &str) -> Action {
@@ -221,7 +221,7 @@ impl<'a, V: InstanceVisitor> InstanceReader<'a, V> {
                     }
                 } else {
                     // unrecognized line
-                    visit!(visit_unrecognized_dash_line, lineno, content);
+                    visit!(visit_unrecognized_hash_line, lineno, content);
                 }
                 continue;
             }
@@ -247,7 +247,7 @@ mod tests {
         pub headers: Vec<(usize, usize, usize)>,
         pub trees: Vec<(usize, String)>,
         pub extra_whitespace_lines: Vec<(usize, String)>,
-        pub unrecognized_dash_lines: Vec<(usize, String)>,
+        pub unrecognized_hash_lines: Vec<(usize, String)>,
         pub unrecognized_lines: Vec<(usize, String)>,
         pub stride_lines: Vec<(usize, String, String, String)>,
         pub param_tree_decomp: Option<(usize, TreeDecomposition)>,
@@ -269,8 +269,8 @@ mod tests {
             Action::Continue
         }
 
-        fn visit_unrecognized_dash_line(&mut self, lineno: usize, line: &str) -> Action {
-            self.unrecognized_dash_lines
+        fn visit_unrecognized_hash_line(&mut self, lineno: usize, line: &str) -> Action {
+            self.unrecognized_hash_lines
                 .push((lineno, line.to_string()));
             Action::Continue
         }
@@ -318,7 +318,7 @@ mod tests {
             vec![(1, "(1);".to_string()), (3, "(2);".to_string())]
         );
         assert!(visitor.extra_whitespace_lines.is_empty());
-        assert!(visitor.unrecognized_dash_lines.is_empty());
+        assert!(visitor.unrecognized_hash_lines.is_empty());
         assert!(visitor.unrecognized_lines.is_empty());
     }
 
@@ -339,7 +339,7 @@ mod tests {
             visitor.extra_whitespace_lines,
             vec![(1, " (1);".to_string())]
         );
-        assert!(visitor.unrecognized_dash_lines.is_empty());
+        assert!(visitor.unrecognized_hash_lines.is_empty());
         assert!(visitor.unrecognized_lines.is_empty());
     }
 
@@ -361,7 +361,7 @@ mod tests {
             vec![(1, " (1);".to_string())]
         );
         assert_eq!(
-            visitor.unrecognized_dash_lines,
+            visitor.unrecognized_hash_lines,
             vec![(4, "#<illegal comment".to_string())]
         );
         assert_eq!(

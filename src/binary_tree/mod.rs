@@ -6,7 +6,7 @@ pub use indexed_bin_tree::*;
 pub mod depth_first_search;
 pub use depth_first_search::DepthFirstSearch;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
 pub struct NodeIdx(pub u32);
 
 impl NodeIdx {
