@@ -3,16 +3,17 @@ use std::io::Write;
 
 impl<B: TopDownCursor> NewickWriter for B {
     fn write_newick_inner(&self, writer: &mut impl Write) -> std::io::Result<()> {
-        if let Some((left, right)) = self.children() {
-            write!(writer, "(")?;
-            left.write_newick_inner(writer)?;
-            write!(writer, ",")?;
-            right.write_newick_inner(writer)?;
-            write!(writer, ")")
-        } else if let Some(Label(label)) = self.leaf_label() {
-            write!(writer, "{label}")
-        } else {
-            unreachable!("Nodes must either have children or a label; this one has neither");
+        match self.visit() {
+            NodeType::Inner(left, right) => {
+                write!(writer, "(")?;
+                left.write_newick_inner(writer)?;
+                write!(writer, ",")?;
+                right.write_newick_inner(writer)?;
+                write!(writer, ")")
+            }
+            NodeType::Leaf(Label(label)) => {
+                write!(writer, "{label}")
+            }
         }
     }
 }

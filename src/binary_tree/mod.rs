@@ -28,10 +28,12 @@ impl From<Label> for NodeIdx {
     }
 }
 
+/// Generic interface to build binary trees required by Newick parser.
 pub trait TreeBuilder {
     type Node;
 
     /// Creates a new inner node with the two children provided.
+    ///
     ///
     /// # Example
     /// ```
@@ -82,8 +84,17 @@ pub trait TreeBuilder {
     }
 }
 
+pub enum NodeType<T> {
+    Inner(T, T),
+    Leaf(Label),
+}
+
+/// Minimal requirement for a binary tree implemenation (e.g., used for Newick writer).
 pub trait TopDownCursor: Sized {
     /// Returns the children iff self is an inner node and `None` otherwise.
+    ///
+    /// # Remark
+    /// When traversing a tree, it is often more convenient to use [`TopDownCursor::visit`].
     ///
     /// # Example
     /// ```
@@ -137,6 +148,9 @@ pub trait TopDownCursor: Sized {
 
     /// Returns the label iff self is a leaf node and `None` otherwise.
     ///
+    /// # Remark
+    /// When traversing a tree, it is often more convenient to use [`TopDownCursor::visit`].
+    ///
     /// # Example
     /// ```
     /// use pace26io::binary_tree::*;
@@ -147,7 +161,7 @@ pub trait TopDownCursor: Sized {
     ///
     /// assert_eq!(leaf.top_down().leaf_label().unwrap(), Label(1337));
     /// assert!(   root.top_down().leaf_label().is_none());
-    ///
+    /// ```
     fn leaf_label(&self) -> Option<Label>;
 
     /// Returns true iff self is an inner node
@@ -182,6 +196,29 @@ pub trait TopDownCursor: Sized {
     /// ```
     fn is_leaf(&self) -> bool {
         self.leaf_label().is_some()
+    }
+
+    /// For an inner node returns NodeType::Inner, for a leaf returns NodeType::Leaf.
+    ///
+    /// # Example
+    /// ```
+    /// use pace26io::binary_tree::*;
+    ///
+    /// let mut builder = BinTreeBuilder::default();
+    /// let leaf = builder.new_leaf(Label(1));
+    /// let root = builder.new_inner(NodeIdx::new(0), leaf.clone(), leaf.clone());
+    ///
+    /// assert!(matches!(root.top_down().visit(), NodeType::Inner(..)));
+    /// assert!(matches!(leaf.top_down().visit(), NodeType::Leaf(..)));
+    /// ```
+    fn visit(&self) -> NodeType<Self> {
+        if let Some((l, r)) = self.children() {
+            NodeType::Inner(l, r)
+        } else if let Some(l) = self.leaf_label() {
+            NodeType::Leaf(l)
+        } else {
+            unreachable!("Each node is either an inner node or a leaf");
+        }
     }
 }
 
