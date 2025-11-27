@@ -5,6 +5,9 @@ edition = "2024"
 authors = ["Manuel Penschuck"]
 description = "Utilities to read PACE26 instances and write answers"
 license = "GPL-3.0-or-later"
+repository = "https://github.com/manpen/pace26io"
+homepage = "https://pacechallenge.org/2026/"
+exclude = ["/.github"]
 
 [dependencies]
 serde = "1.0.228"
