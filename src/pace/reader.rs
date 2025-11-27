@@ -46,7 +46,7 @@ pub struct InstanceReader<'a, V: InstanceVisitor> {
 ///
 /// Example: see the documentation of [`InstanceReader`].
 pub trait InstanceVisitor {
-    fn visit_header(&mut self, _lineno: usize, _num_trees: usize, _num_leafs: usize) -> Action {
+    fn visit_header(&mut self, _lineno: usize, _num_trees: usize, _num_leaves: usize) -> Action {
         Action::Continue
     }
     fn visit_tree(&mut self, _lineno: usize, _line: &str) -> Action {
@@ -254,8 +254,8 @@ mod tests {
     }
 
     impl InstanceVisitor for TestVisitor {
-        fn visit_header(&mut self, lineno: usize, num_trees: usize, num_leafs: usize) -> Action {
-            self.headers.push((lineno, num_trees, num_leafs));
+        fn visit_header(&mut self, lineno: usize, num_trees: usize, num_leaves: usize) -> Action {
+            self.headers.push((lineno, num_trees, num_leaves));
             Action::Continue
         }
 
