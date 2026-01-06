@@ -1,7 +1,7 @@
 # PACE 2026 I/O Crate
 
 This crate implements parsers and writers for the [PACE 2026 file format](https://pacechallenge.org/2026/format/).
-It was originally developed for the official PACE tools (e.g., verifier and stride).
+It was originally developed for the official PACE tools (e.g., verifier and [Stride](https://github.com/manpen/pace26stride)).
 As such, it offers a great deal of flexibility including quite pedantic parsing modes.
 Most users should stay away from this mess and rather use the simplified reader interface:
 
@@ -28,18 +28,18 @@ let instance = Instance::try_read(&mut input, &mut tree_builder)
 println!("# Found {} trees", instance.trees.len());
 ```
 
-This interface will ignore most parser warnings and only raise errors if parsing cannot continue. We recommend the `stride` tool to debug broken instances.
+This interface will ignore most parser warnings and only raise errors if parsing cannot continue. 
+We recommend the [Stride tool](https://github.com/manpen/pace26stride) to debug broken instances.
 
 ## Tree representation
 
-We offer only rudamentary tree representations, more specifically 
-[`binary_tree::BinTree`] and [`binary_tree::IndexedBinTree`]. The latter also stores 
-node ids of internal nodes, used --for instance-- for graph parameters. 
+We offer only rudimentary tree representations, more specifically [`binary_tree::BinTree`] and [`binary_tree::IndexedBinTree`].
+The latter also stores node ids of internal nodes, used --for instance-- for graph parameters. 
 
 We expect that solvers typically need more control over their data structures. 
-For this reason, the crate is designed to make implementating own tree structures straightforward.
+For this reason, the crate is designed to make implementation of own tree structures straightforward.
 You need to provide 
- - A node type which respresents both inner nodes and leafes. It needs to implement [`binary_tree::TopDownCursor`] and --if applicable-- [`binary_tree::TreeWithNodeIdx`].
+ - A node type which represents both inner nodes and leaves. It needs to implement [`binary_tree::TopDownCursor`] and --if applicable-- [`binary_tree::TreeWithNodeIdx`].
  - A struct implementing [`binary_tree::TreeBuilder`].
 
 ## Writing Newick strings
