@@ -1,6 +1,6 @@
 [package]
 name = "pace26io"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 authors = ["Manuel Penschuck"]
 description = "Utilities to read PACE26 instances and write answers"
@@ -11,7 +11,7 @@ exclude = ["/.github"]
 
 [dependencies]
 serde = "1.0.228"
-serde_json = "1.0.145"
+serde_json = "1.0.148"
 thiserror = "2.0.17"
 
 [dev-dependencies]
