@@ -1,6 +1,6 @@
 [package]
 name = "pace26io"
-version = "0.1.1"
+version = "0.2.0"
 edition = "2024"
 authors = ["Manuel Penschuck"]
 description = "Utilities to read PACE26 instances and write answers"

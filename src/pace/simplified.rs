@@ -21,6 +21,9 @@ pub struct Instance<B: TreeBuilder> {
     pub num_leaves: usize,
     pub trees: Vec<B::Node>,
     pub tree_decomposition: Option<TreeDecomposition>,
+
+    /// Represents parameters (a, b) where an approximate solution of size at most `a * opt + b` is allowable
+    pub approx: Option<(f64, usize)>,
 }
 
 impl<B: TreeBuilder> Instance<B> {
@@ -32,6 +35,7 @@ impl<B: TreeBuilder> Instance<B> {
             num_leaves: 0,
             trees: Vec::with_capacity(2),
             tree_decomposition: None,
+            approx: None,
         };
 
         let mut visitor = Visitor {
@@ -60,12 +64,7 @@ struct Visitor<'a, B: TreeBuilder> {
 }
 
 impl<'a, B: TreeBuilder> InstanceVisitor for Visitor<'a, B> {
-    fn visit_header(
-        &mut self,
-        _lineno: usize,
-        _num_trees: usize,
-        num_leaves: usize,
-    ) -> super::reader::Action {
+    fn visit_header(&mut self, _lineno: usize, _num_trees: usize, num_leaves: usize) -> Action {
         if self.num_leaves.is_some() {
             self.error = Some(SimplifiedReaderError::MultipleHeaders);
             return Action::Terminate;
@@ -81,7 +80,7 @@ impl<'a, B: TreeBuilder> InstanceVisitor for Visitor<'a, B> {
         Action::Continue
     }
 
-    fn visit_tree(&mut self, _lineno: usize, line: &str) -> super::reader::Action {
+    fn visit_tree(&mut self, _lineno: usize, line: &str) -> Action {
         let num_leaves = match self.num_leaves {
             Some(x) => x,
             None => {
@@ -105,7 +104,17 @@ impl<'a, B: TreeBuilder> InstanceVisitor for Visitor<'a, B> {
 
         self.instance.trees.push(tree);
 
-        super::reader::Action::Continue
+        Action::Continue
+    }
+
+    fn visit_approx_line(&mut self, _lineno: usize, param_a: f64, param_b: usize) -> Action {
+        if self.instance.approx.is_some() {
+            self.error = Some(SimplifiedReaderError::MultipleApprox);
+            return Action::Terminate;
+        }
+
+        self.instance.approx = Some((param_a, param_b));
+        Action::Continue
     }
 
     const VISIT_PARAM_TREE_DECOMPOSITION: bool = true;
@@ -133,7 +142,7 @@ pub enum SimplifiedReaderError {
     #[error(transparent)]
     IO(#[from] std::io::Error),
 
-    #[error("Multiple headers found")]
+    #[error("Multiple headers (#p) found")]
     MultipleHeaders,
 
     #[error("Header indicates no leaves")]
@@ -141,6 +150,9 @@ pub enum SimplifiedReaderError {
 
     #[error("No header before first tree")]
     NoHeader,
+
+    #[error("Multiple approx lines (#a) found")]
+    MultipleApprox,
 }
 
 #[cfg(test)]
@@ -162,5 +174,6 @@ mod test {
         assert_eq!(instance.num_leaves, 6);
         assert_eq!(instance.trees.len(), 2);
         assert_eq!(instance.tree_decomposition.unwrap().treewidth, 2);
+        assert_eq!(instance.approx, Some((1.2, 1337)));
     }
 }

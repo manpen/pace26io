@@ -49,6 +49,10 @@ pub trait InstanceVisitor {
     fn visit_header(&mut self, _lineno: usize, _num_trees: usize, _num_leaves: usize) -> Action {
         Action::Continue
     }
+    fn visit_approx_line(&mut self, _lineno: usize, _param_a: f64, _param_b: usize) -> Action {
+        Action::Continue
+    }
+
     fn visit_tree(&mut self, _lineno: usize, _line: &str) -> Action {
         Action::Continue
     }
@@ -89,6 +93,9 @@ pub enum ReaderError {
     #[error("Identified line {} as parameter line. Expected '#x {{key}}: {{value}}'", lineno+1)]
     InvalidParameterLine { lineno: usize },
 
+    #[error("Identified line {} as approx line. Expected '#a {{a}} {{b}}'", lineno+1)]
+    InvalidApproxLine { lineno: usize },
+
     #[error("Unknown parameter in line {}: {key}'", lineno+1)]
     UnknownParameter { lineno: usize, key: String },
 
@@ -115,6 +122,21 @@ fn try_parse_header(line: &str) -> Option<(usize, usize)> {
     let num_leaves = parts.next().and_then(|x| x.parse::<usize>().ok())?;
 
     Some((num_trees, num_leaves))
+}
+
+fn try_parse_approx(line: &str) -> Option<(f64, usize)> {
+    let mut parts = line.split(' ');
+    if parts.next()? != "#a" {
+        return None;
+    }
+
+    let param_a = parts.next().and_then(|x| x.parse::<f64>().ok())?;
+    if param_a < 0.0 {
+        return None;
+    }
+    let param_b = parts.next().and_then(|x| x.parse::<usize>().ok())?;
+
+    Some((param_a, param_b))
 }
 
 /// Expects a line `#X {key} {value}` and returns ({key}, {value}) if found
@@ -193,6 +215,13 @@ impl<'a, V: InstanceVisitor> InstanceReader<'a, V> {
                     } else {
                         return Err(ReaderError::InvalidStrideLine { lineno });
                     }
+                } else if content.starts_with("#a") {
+                    // stride line in the format "#s key: value"
+                    if let Some((a, b)) = try_parse_approx(content) {
+                        visit!(visit_approx_line, lineno, a, b);
+                    } else {
+                        return Err(ReaderError::InvalidApproxLine { lineno });
+                    }
                 } else if content.starts_with("#x") {
                     if let Some((key, value)) = try_split_key_value(content) {
                         match key {
@@ -251,6 +280,7 @@ mod tests {
         pub unrecognized_lines: Vec<(usize, String)>,
         pub stride_lines: Vec<(usize, String, String, String)>,
         pub param_tree_decomp: Option<(usize, TreeDecomposition)>,
+        pub approx_lines: Vec<(usize, f64, usize)>,
     }
 
     impl InstanceVisitor for TestVisitor {
@@ -277,6 +307,11 @@ mod tests {
 
         fn visit_unrecognized_line(&mut self, lineno: usize, line: &str) -> Action {
             self.unrecognized_lines.push((lineno, line.to_string()));
+            Action::Continue
+        }
+
+        fn visit_approx_line(&mut self, lineno: usize, param_a: f64, param_b: usize) -> Action {
+            self.approx_lines.push((lineno, param_a, param_b));
             Action::Continue
         }
 
@@ -368,6 +403,34 @@ mod tests {
             visitor.unrecognized_lines,
             vec![(5, "(3)missing semicolon".to_string())]
         );
+    }
+
+    #[test]
+    fn input_with_approx_line() {
+        let input = "#p 2 3\n#s stride_key somevalue\n#a 1.2345 42\n(1);\n";
+        let mut visitor = TestVisitor::default();
+        let mut reader = InstanceReader::new(&mut visitor);
+        reader.read(input.as_bytes()).unwrap();
+
+        assert_eq!(visitor.approx_lines, vec![(2, 1.2345, 42)]);
+    }
+
+    #[test]
+    fn input_with_invalid_approx_line() {
+        for input in [
+            "#p 2 3\n#s stride_key somevalue\n#a -1.2345 42\n(1);\n",
+            "#a foo 3",
+            "#a 1.234 foo",
+            "#a 1.2345 -4",
+        ] {
+            let mut visitor = TestVisitor::default();
+            let mut reader = InstanceReader::new(&mut visitor);
+            let res = reader.read(input.as_bytes());
+            assert!(
+                matches!(res.unwrap_err(), ReaderError::InvalidApproxLine { .. }),
+                "{input:?}"
+            );
+        }
     }
 
     #[test]
